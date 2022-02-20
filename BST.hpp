@@ -8,6 +8,11 @@
 #include <utility>
 #include <map>
 #include <stack>
+#include <experimental/coroutine>
+
+using namespace std::experimental;
+
+
 
 template<class Key, class Value>
 class BST
@@ -22,6 +27,8 @@ private:
         Node* left = nullptr;
         Node* right = nullptr;
     };
+
+
 
     Node* root = nullptr;
     Node* most_left = nullptr;
@@ -80,6 +87,93 @@ private:
             {
                 cur = s.top();
                 visit(cur);
+                s.pop();
+                cur = cur->right;
+            }
+        }
+    }
+
+public:
+    template <class CoroutineValue>
+    struct Generator {
+        struct Promise;
+
+// compiler looks for promise_type
+        using promise_type=Promise;
+        coroutine_handle<Promise> coroutineHandle;
+
+        explicit Generator(coroutine_handle<Promise> h): coroutineHandle(h) {}
+
+        ~Generator() {
+            if(coroutineHandle)
+                coroutineHandle.destroy();
+        }
+
+// get current value of coroutine
+        int value() {
+            return coroutineHandle.promise().val;
+        }
+
+// advance coroutine past suspension
+        bool next() {
+            coroutineHandle.resume();
+            return !coroutineHandle.done();
+        }
+
+        struct Promise {
+// current value of suspended coroutine
+            CoroutineValue val;
+
+// called by compiler first thing to get coroutine result
+            Generator get_return_object() {
+                return Generator{coroutine_handle<Promise>::from_promise(*this)};
+            }
+
+// called by compiler first time co_yield occurs
+            suspend_always initial_suspend() {
+                return {};
+            }
+
+// required for co_yield
+            suspend_always yield_value(int x) {
+                val=x;
+                return {};
+            }
+
+// called by compiler for coroutine without return
+            suspend_never return_void() {
+                return {};
+            }
+
+// called by compiler last thing to await final result
+// coroutine cannot be resumed after this is called
+            suspend_always final_suspend() noexcept {
+                return {};
+            }
+
+            suspend_always unhandled_exception()
+            {
+                return_void();
+            }
+        };
+
+    };
+
+    Generator<Value> async_value_visitor() const
+    {
+        auto cur = root;
+        std::stack<Node*> s;
+        while (cur || !s.empty())
+        {
+            if (cur)
+            {
+                s.push(cur);
+                cur = cur->left;
+            }
+            else
+            {
+                cur = s.top();
+                co_yield cur->value;
                 s.pop();
                 cur = cur->right;
             }
@@ -347,7 +441,7 @@ public:
                      if (n->value == 1)
                      {
                          result = result && (!(n->left) || n->left->value == 0)
-                                 && (!(n->right) || n->right->value == 0);
+                                  && (!(n->right) || n->right->value == 0);
                      }
                  });
 
@@ -374,6 +468,101 @@ public:
                 current = s.top().first->right;
                 bh = s.top().second + (s.top().first->value == 0);
                 s.pop();
+            }
+        }
+
+        return true;
+    }
+
+    bool rotate_right(Node** node = nullptr)
+    {
+        if (!node)
+            node = &root;
+
+        if (!(*node)->left)
+            return false;
+
+        auto left_node = (*node)->left;
+        auto lr_node = left_node->right;
+
+        left_node->parent = (*node)->parent;
+        left_node->right = *node;
+        (*node)->parent = left_node;
+        (*node)->left = lr_node;
+        if (lr_node)
+            lr_node->parent = *node;
+        *node = left_node;
+        return true;
+    }
+
+    bool rotate_left(Node** node = nullptr)
+    {
+        if (!node)
+            node = &root;
+
+        if (!(*node) || !(*node)->right)
+            return false;
+
+        auto right_node = (*node)->right;
+        auto rl_node = right_node->left;
+
+        right_node->parent = (*node)->parent;
+        right_node->left = *node;
+
+        (*node)->parent = right_node;
+        (*node)->right = rl_node;
+
+        if (rl_node)
+            rl_node->parent = *node;
+        *node = right_node;
+        return true;
+    }
+
+    void transformToVine()
+    {
+        auto p = root;
+        auto q = root->parent;
+
+        while(p)
+        {
+            if (!p->right)
+            {
+                q = p;
+                p = p->left;
+                continue;
+            }
+
+            rotate_left(&p);
+            p = q->left;
+        }
+    }
+
+    bool isKeySetEqualTo(const BST& other)
+    {
+        if (this->count != other.count)
+            return false;
+
+        auto other_gen = other.async_value_visitor();
+        auto cur = root;
+        std::stack<Node*> s;
+        while (cur || !s.empty())
+        {
+            if (cur)
+            {
+                s.push(cur);
+                cur = cur->left;
+            }
+            else
+            {
+                cur = s.top();
+                other_gen.next();
+                if (cur->value != other_gen.value())
+                {
+                    return false;
+                }
+                other.async_value_visitor().next();
+                s.pop();
+                cur = cur->right;
             }
         }
 
