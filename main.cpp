@@ -4,22 +4,25 @@
 
 int main()
 {
-    BST<int, int> tree;
+    BST<int, int> tree1;
     BST<int, int> tree2;
 
-    tree.insert(4, 1);
-    tree.insert(2, 2);
-    tree.insert(1, 3);
-    tree.insert(5, 4);
-    tree.insert(3, 5);
+    tree1.insert(5, 0);
+    tree1.insert(1, 0);
+    tree1.insert(4, 0);
+    tree1.insert(2, 0);
+    tree1.insert(3, 0);
+    tree1.insert(0, 0);
 
-    tree2.insert(5,4);
-    tree2.insert(4,1);
-    tree2.insert(3,5);
-    tree2.insert(2,2);
-    tree2.insert(1,3);
+    tree2.insert(5, 0);
+    tree2.insert(1, 0);
+    tree2.insert(4, 0);
+    tree2.insert(2, 0);
+    tree2.insert(3, 0);
+    tree2.insert(0, 0);
 
-    std::cout << tree.isKeySetEqualTo(tree2) << std::endl;
+    std::cout << tree1.isStructureEqual(tree2);
+
 
 
     return 0;

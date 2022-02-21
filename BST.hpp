@@ -5,13 +5,14 @@
 #ifndef TREEITER_BST_HPP
 #define TREEITER_BST_HPP
 
+
 #include <utility>
+#include <functional>
 #include <map>
 #include <stack>
 #include <experimental/coroutine>
 
 using namespace std::experimental;
-
 
 
 template<class Key, class Value>
@@ -29,12 +30,11 @@ private:
     };
 
 
-
     Node* root = nullptr;
     Node* most_left = nullptr;
     Node* most_right = nullptr;
 
-    size_t count = 0;
+    size_t _size = 0;
 
     Node** _find(const Key& key)
     {
@@ -64,8 +64,7 @@ private:
         {
             most_left = root;
             most_right = root;
-        }
-        else
+        } else
         {
             most_left = most_left->left ? most_left->left : most_left;
             most_right = most_right->right ? most_right->right : most_right;
@@ -82,8 +81,7 @@ private:
             {
                 s.push(cur);
                 cur = cur->left;
-            }
-            else
+            } else
             {
                 cur = s.top();
                 visit(cur);
@@ -94,60 +92,69 @@ private:
     }
 
 public:
-    template <class CoroutineValue>
-    struct Generator {
+    template<class CoroutineValue>
+    struct Generator
+    {
         struct Promise;
-
 // compiler looks for promise_type
-        using promise_type=Promise;
+        using promise_type = Promise;
         coroutine_handle<Promise> coroutineHandle;
 
-        explicit Generator(coroutine_handle<Promise> h): coroutineHandle(h) {}
+        explicit Generator(coroutine_handle<Promise> h) : coroutineHandle(h) {}
 
-        ~Generator() {
-            if(coroutineHandle)
+        ~Generator()
+        {
+            if (coroutineHandle)
                 coroutineHandle.destroy();
         }
 
 // get current value of coroutine
-        int value() {
+        int value()
+        {
             return coroutineHandle.promise().val;
         }
 
 // advance coroutine past suspension
-        bool next() {
+        bool next()
+        {
             coroutineHandle.resume();
             return !coroutineHandle.done();
         }
 
-        struct Promise {
+        struct Promise
+        {
 // current value of suspended coroutine
             CoroutineValue val;
 
 // called by compiler first thing to get coroutine result
-            Generator get_return_object() {
+            Generator get_return_object()
+            {
                 return Generator{coroutine_handle<Promise>::from_promise(*this)};
             }
 
 // called by compiler first time co_yield occurs
-            suspend_always initial_suspend() {
+            suspend_always initial_suspend()
+            {
                 return {};
             }
 
 // required for co_yield
-            suspend_always yield_value(int x) {
-                val=x;
+            suspend_always yield_value(int x)
+            {
+                val = x;
                 return {};
             }
 
 // called by compiler for coroutine without return
-            suspend_never return_void() {
+            suspend_never return_void()
+            {
                 return {};
             }
 
 // called by compiler last thing to await final result
 // coroutine cannot be resumed after this is called
-            suspend_always final_suspend() noexcept {
+            suspend_always final_suspend() noexcept
+            {
                 return {};
             }
 
@@ -169,8 +176,7 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            }
-            else
+            } else
             {
                 cur = s.top();
                 co_yield cur->value;
@@ -212,8 +218,7 @@ public:
                 m_ptr = &((*m_ptr)->parent);
                 while ((*m_ptr)->left == nullptr)
                     m_ptr = &((*m_ptr)->parent);
-            }
-            else
+            } else
             {
                 m_ptr = &((*m_ptr)->right);
                 while ((*m_ptr)->left)
@@ -267,7 +272,7 @@ public:
             return {Iterator(p), false};
         }
 
-        ++(this->count);
+        ++(this->_size);
         (*p) = new Node{key, value, parent};
 
         this->update_edge_nodes(p);
@@ -296,8 +301,7 @@ public:
         {
             delete *p;
             *p = nullptr;
-        }
-        else if ((*p)->left && (*p)->right)
+        } else if ((*p)->left && (*p)->right)
         {
             Node** min_node = &((*p)->right);
             while ((*min_node)->left)
@@ -310,15 +314,14 @@ public:
             (*min_node)->right->parent = (*min_node)->parent;
             *min_node = (*min_node)->right;
             delete to_delete;
-        }
-        else
+        } else
         {
             auto to_delete = *p;
             *p = (*p)->right ? (*p)->right : (*p)->left;
             delete to_delete;
         }
 
-        --(this->count);
+        --(this->_size);
     }
 
     void clear()
@@ -334,8 +337,7 @@ public:
                 auto left_son = cur->left;
                 delete cur;
                 cur = left_son;
-            }
-            else
+            } else
             {
                 cur = s.top();
                 s.pop();
@@ -343,7 +345,7 @@ public:
         }
 
         this->root = nullptr;
-        this->count = 0;
+        this->_size = 0;
     }
 
     Iterator next(const Key& key)
@@ -382,8 +384,7 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            }
-            else
+            } else
             {
                 cur = s.top();
                 f(cur->key, cur->value);
@@ -459,8 +460,7 @@ public:
                 s.push({current, bh});
                 bh += current->value == 0;
                 current = current->left;
-            }
-            else
+            } else
             {
                 if (BH == -1)
                     BH = bh;
@@ -523,7 +523,7 @@ public:
         auto p = root;
         auto q = root->parent;
 
-        while(p)
+        while (p)
         {
             if (!p->right)
             {
@@ -537,9 +537,9 @@ public:
         }
     }
 
-    bool isKeySetEqualTo(const BST& other)
+    bool isKeySetEqualTo(const BST& other) const
     {
-        if (this->count != other.count)
+        if (this->_size != other._size)
             return false;
 
         auto other_gen = other.async_value_visitor();
@@ -551,8 +551,7 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            }
-            else
+            } else
             {
                 cur = s.top();
                 other_gen.next();
@@ -564,6 +563,72 @@ public:
                 s.pop();
                 cur = cur->right;
             }
+        }
+
+        return true;
+    }
+
+    bool isStructureEqual(const BST& other)
+    {
+        if (_size != other._size)
+            return false;
+
+        auto cur = root;
+        auto other_cure = other.root;
+        std::stack<Node*> s;
+        std::stack<Node*> s2;
+
+        while (cur || other_cure || !s.empty())
+        {
+            if (cur && other_cure)
+            {
+                s.push(cur);
+                s2.push(other_cure);
+                cur = cur->left;
+                other_cure = other_cure->left;
+            } else if (!(cur || other_cure))
+            {
+                cur = s.top();
+                other_cure = s2.top();
+                s.pop();
+                s2.pop();
+                cur = cur->right;
+                other_cure = other_cure->right;
+            } else return false;
+        }
+
+        return true;
+    }
+
+    bool operator==(const BST& other)
+    {
+        if (_size != other._size)
+            return false;
+
+        auto cur = root;
+        auto other_cur = other.root;
+        std::stack<Node*> s;
+        std::stack<Node*> s2;
+
+        while (cur || other_cur || !s.empty())
+        {
+            if (cur && other_cur)
+            {
+                s.push(cur);
+                s2.push(other_cur);
+                cur = cur->left;
+                other_cur = other_cur->left;
+            } else if (!(cur || other_cur))
+            {
+                cur = s.top();
+                other_cur = s2.top();
+                s.pop();
+                s2.pop();
+                if (cur->key != other_cur->key || cur->value != other_cur->value)
+                    return false;
+                cur = cur->right;
+                other_cur = other_cur->right;
+            } else return false;
         }
 
         return true;
