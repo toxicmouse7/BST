@@ -64,7 +64,8 @@ private:
         {
             most_left = root;
             most_right = root;
-        } else
+        }
+        else
         {
             most_left = most_left->left ? most_left->left : most_left;
             most_right = most_right->right ? most_right->right : most_right;
@@ -81,7 +82,8 @@ private:
             {
                 s.push(cur);
                 cur = cur->left;
-            } else
+            }
+            else
             {
                 cur = s.top();
                 visit(cur);
@@ -100,7 +102,9 @@ public:
         using promise_type = Promise;
         coroutine_handle<Promise> coroutineHandle;
 
-        explicit Generator(coroutine_handle<Promise> h) : coroutineHandle(h) {}
+        explicit Generator(coroutine_handle<Promise> h) : coroutineHandle(h)
+        {
+        }
 
         ~Generator()
         {
@@ -176,7 +180,8 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            } else
+            }
+            else
             {
                 cur = s.top();
                 co_yield cur->value;
@@ -218,7 +223,8 @@ public:
                 m_ptr = &((*m_ptr)->parent);
                 while ((*m_ptr)->left == nullptr)
                     m_ptr = &((*m_ptr)->parent);
-            } else
+            }
+            else
             {
                 m_ptr = &((*m_ptr)->right);
                 while ((*m_ptr)->left)
@@ -282,7 +288,7 @@ public:
 
     std::pair<Iterator, bool> insert(const Key& key, Value&& value)
     {
-        this->insert(key, value);
+        return this->insert(key, value);
     }
 
     std::pair<Iterator, bool> insert(Key&& key, const Value& value)
@@ -301,7 +307,8 @@ public:
         {
             delete *p;
             *p = nullptr;
-        } else if ((*p)->left && (*p)->right)
+        }
+        else if ((*p)->left && (*p)->right)
         {
             Node** min_node = &((*p)->right);
             while ((*min_node)->left)
@@ -314,7 +321,8 @@ public:
             (*min_node)->right->parent = (*min_node)->parent;
             *min_node = (*min_node)->right;
             delete to_delete;
-        } else
+        }
+        else
         {
             auto to_delete = *p;
             *p = (*p)->right ? (*p)->right : (*p)->left;
@@ -337,7 +345,8 @@ public:
                 auto left_son = cur->left;
                 delete cur;
                 cur = left_son;
-            } else
+            }
+            else
             {
                 cur = s.top();
                 s.pop();
@@ -384,7 +393,8 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            } else
+            }
+            else
             {
                 cur = s.top();
                 f(cur->key, cur->value);
@@ -460,7 +470,8 @@ public:
                 s.push({current, bh});
                 bh += current->value == 0;
                 current = current->left;
-            } else
+            }
+            else
             {
                 if (BH == -1)
                     BH = bh;
@@ -537,7 +548,7 @@ public:
         }
     }
 
-    bool isKeySetEqualTo(const BST& other) const
+    bool isKeySetEqualToAsync(const BST& other) const
     {
         if (this->_size != other._size)
             return false;
@@ -551,7 +562,8 @@ public:
             {
                 s.push(cur);
                 cur = cur->left;
-            } else
+            }
+            else
             {
                 cur = s.top();
                 other_gen.next();
@@ -586,7 +598,8 @@ public:
                 s2.push(other_cure);
                 cur = cur->left;
                 other_cure = other_cure->left;
-            } else if (!(cur || other_cure))
+            }
+            else if (!(cur || other_cure))
             {
                 cur = s.top();
                 other_cure = s2.top();
@@ -594,9 +607,42 @@ public:
                 s2.pop();
                 cur = cur->right;
                 other_cure = other_cure->right;
-            } else return false;
+            }
+            else return false;
         }
 
+        return true;
+    }
+
+    bool isKeySetEqualTo(const BST& other)
+    {
+        if (_size != other._size) return false;
+        if (_size == 0) return true;
+        std::stack<Node*> s1, s2;
+        s1.push(root);
+        s2.push(other.root);
+        auto cur1 = root->left;
+        auto cur2 = other.root->left;
+        int count = _size;
+        while (count > 0)
+        {
+            while (cur1)
+            {
+                s1.push(cur1);
+                cur1 = cur1->left;
+            }
+            while (cur2)
+            {
+                s2.push(cur2);
+                cur2 = cur2->left;
+            }
+            if (s1.top()->key != s2.top()->key) return false;
+            cur1 = s1.top()->right;
+            cur2 = s2.top()->right;
+            s1.pop();
+            s2.pop();
+            --count;
+        }
         return true;
     }
 
@@ -618,7 +664,8 @@ public:
                 s2.push(other_cur);
                 cur = cur->left;
                 other_cur = other_cur->left;
-            } else if (!(cur || other_cur))
+            }
+            else if (!(cur || other_cur))
             {
                 cur = s.top();
                 other_cur = s2.top();
@@ -628,10 +675,55 @@ public:
                     return false;
                 cur = cur->right;
                 other_cur = other_cur->right;
-            } else return false;
+            }
+            else return false;
         }
 
         return true;
+    }
+
+    void insert_rbt(const Key& key)
+    {
+        std::function<Node*(Node*)> inserter =
+                [&key, &inserter, this](Node** cur)
+                {
+                    if (!(*cur))
+                    {
+                        *cur = new Node(key, 1, nullptr, nullptr, nullptr);
+                        return *cur;
+                    }
+                    else if ((*cur)->key == key) return nullptr;
+                    else if ((*cur)->key > key)
+                    {
+                        Node* pr = inserter(&((*cur)->left));
+                        if (!pr) return nullptr;
+                        if (pr == (*cur)->left)
+                        {
+                            if ((*cur)->value == 0) return nullptr;
+                            else return (*cur)->left;
+                        }
+                        if ((*cur)->right->value == 1)
+                        {
+                            (*cur)->right->value = 0;
+                            (*cur)->left->value = 0;
+                            (*cur)->value = 1;
+                            return *cur;
+                        }
+                        else
+                        {
+                            if (pr == (*cur)->left->left)
+                            {
+                                this->rotate_right(cur);
+                                (*cur)->value = 0;
+                                (*cur)->right->value = 1;
+                            }
+                            else
+                            {
+                                //схема 2б
+                            }
+                        }
+                    }
+                };
     }
 };
 
